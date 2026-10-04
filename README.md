@@ -1,7 +1,7 @@
 # Better Theme Syncing
 
 ![Omarchy](https://img.shields.io/badge/Omarchy-4.x-1e66f5?style=flat-square)
-![Shell](https://img.shields.io/badge/Shell-bash-1e66f5?style=flat-square)
+![Bash](https://img.shields.io/badge/Bash-1e66f5?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-1e66f5?style=flat-square)
 
 > **id:** `pix.themesync`
@@ -16,10 +16,11 @@ as you install more.
 Works with [Better Bar](https://github.com/amanhex/Better)'s wallpaper palette, and does not
 compete with `omarchy-rice-sync`, the `better-sync` hook, or the Omarchy shell's own theming.
 
-> **Naming notes.** Better Bar installs a hook of its own called `better-sync`; it is unrelated to
-> this project and nothing here reads, writes, or replaces it. This tool has also been renamed —
-> it was `omarchy-auto-sync`, and briefly `better-sync`. Both old commands still run through a
-> shim that warns and forwards.
+> **Name clash.** Better Bar has a hook of its own called `better-sync`. It is not part of this
+> project, and nothing here touches it.
+>
+> **Renamed.** This was `omarchy-auto-sync`, and briefly `better-sync`. Both old commands still
+> work. They print a warning, then run `better-theme-sync`.
 
 ---
 
