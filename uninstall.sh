@@ -94,10 +94,15 @@ for dir in "${emptied_dirs[@]:-}"; do
   esac
 done
 
-if [[ -L $LOCAL_BIN/better-theme-sync ]]; then
-  rm -f "$LOCAL_BIN/better-theme-sync"
-  log "removed ~/.local/bin/better-theme-sync"
-fi
+# The engine and both compatibility shims. Each is checked as a symlink so a
+# real executable the user happens to keep under one of these names is left
+# alone.
+for bin in better-theme-sync omarchy-auto-sync better-sync; do
+  if [[ -L $LOCAL_BIN/$bin ]]; then
+    rm -f "$LOCAL_BIN/$bin"
+    log "removed ~/.local/bin/$bin"
+  fi
+done
 
 # ---------------------------------------------------------------------------
 # purge

@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 # Shim for the name this tool briefly shipped under. Now `better-theme-sync`.
 #
-# It warns on every run rather than forwarding quietly. Better Bar
+# Warns on every run rather than forwarding quietly. Better Bar
 # (https://github.com/amanhex/Better) installs a hook of its own named
 # `better-sync`, so if you ran this expecting that hook, you want
 # `~/.config/omarchy/hooks/theme-set.d/better-sync` instead.
+#
+# The engine is located relative to this file rather than by name on PATH; see
+# the note in the omarchy-auto-sync shim.
 set -uo pipefail
 
 printf 'better-sync: renamed to better-theme-sync, forwarding.\n' >&2
 printf 'better-sync: not the Better Bar hook. For that, see ~/.config/omarchy/hooks/theme-set.d/better-sync\n' >&2
 
-exec better-theme-sync "$@"
+here=$(dirname -- "$(readlink -f -- "$0")")
+exec "$here/../better-theme-sync" "$@"

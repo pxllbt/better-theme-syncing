@@ -2,8 +2,14 @@
 # Shim for the original name of this tool. Now `better-theme-sync`.
 #
 # Kept so existing scripts keep working. Warns on every run, then forwards.
+#
+# The engine is located relative to this file rather than by name on PATH: the
+# installer links this shim into ~/.local/bin, and a user whose PATH does not
+# include that directory would otherwise get "command not found" from a command
+# that is still installed.
 set -uo pipefail
 
 printf 'omarchy-auto-sync: renamed to better-theme-sync, forwarding.\n' >&2
 
-exec better-theme-sync "$@"
+here=$(dirname -- "$(readlink -f -- "$0")")
+exec "$here/../better-theme-sync" "$@"
