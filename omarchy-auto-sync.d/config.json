@@ -1,0 +1,30 @@
+{
+  "_comment": [
+    "omarchy-auto-sync configuration.",
+    "\"exclude\" is a list of substrings matched against a desktop entry's id.",
+    "Anything matching is left alone entirely. Useful for an app whose own",
+    "theming is better than anything generated here.",
+    "The other keys turn individual handlers off; all default to true."
+  ],
+  "exclude": [],
+  "electron": {
+    "_comment": "Add --force-dark-mode and WebContentsForceDark to Electron and Chromium launchers.",
+    "forceDark": true
+  },
+  "qt": {
+    "_comment": "Write a qt5ct/qt6ct color scheme. Does nothing unless one of those tools is installed.",
+    "enabled": true
+  },
+  "flatpak": {
+    "_comment": "Per-application flatpak override --user for Qt runtime theme selection.",
+    "enabled": true
+  },
+  "steam": {
+    "_comment": "Write theme.vdf for each Steam profile found.",
+    "enabled": true
+  },
+  "wallpaper": {
+    "_comment": "Let the wallpaper palette tint the theme accent when the two hues agree. See harmonize_accent in lib/common.sh.",
+    "enabled": true
+  }
+}

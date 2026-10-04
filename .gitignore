@@ -1,0 +1,14 @@
+# Editor and OS noise.
+*.swp
+*~
+.DS_Store
+.idea/
+.vscode/
+
+# Runtime output. Everything this plugin generates is written to ~/.config,
+# ~/.local/state and ~/.cache at run time, never into its own directory -- the
+# only paths it writes are absolute ones derived from $HOME. These patterns exist
+# so that if a future handler ever does write a relative path, an accidental
+# `git add .` does not commit a machine's palette.
+*.log
+*.bak

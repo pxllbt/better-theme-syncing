@@ -1,0 +1,458 @@
+#!/usr/bin/env bash
+# omarchy-auto-sync — theme every installed application from the active Omarchy
+# theme and the current wallpaper.
+#
+# Omarchy themes a fixed list of about fifteen applications. Everything else on
+# the system — a GTK app, a Qt dialog, an Electron client, a Flatpak — keeps
+# whatever colors it shipped with, which is what makes a themed desktop look
+# half-themed the moment you install anything.
+#
+# This closes that gap. On every theme change and every wallpaper change it
+# walks the installed applications and regenerates each one's colors from two
+# sources: the active theme's colors.toml, and the wallpaper-derived palette
+# Better Bar already publishes. It is additive: it never removes a config, never
+# touches a file under /usr/share, and never writes to /usr/share/omarchy.
+#
+# Better Bar compatibility is structural, not a promise. Its wallpaper palette is
+# read, never written. The apps it themes (Firefox, Equibop, the terminals, the
+# bar) are skipped by id, so nothing here competes with omarchy-rice-sync or the
+# better-sync hook running alongside it.
+
+set -uo pipefail
+
+# `set -e` is deliberately absent. Every handler here is third-party code
+# touching a dozen applications, and one app with an unreadable config must not
+# take down the theme switch that triggered the run. Failures are collected and
+# reported at the end instead.
+
+readonly AUTOSYNC_VERSION="1.0.0"
+
+# Resolve this script's directory, following symlinks, so the plugin works when
+# installed as a symlink in ~/.local/bin.
+autosync_self="${BASH_SOURCE[0]}"
+while [[ -L $autosync_self ]]; do
+  autosync_target=$(readlink "$autosync_self")
+  [[ $autosync_target == /* ]] && autosync_self=$autosync_target ||
+    autosync_self=$(dirname "$autosync_self")/$autosync_target
+done
+AUTOSYNC_BIN_DIR=$(cd -- "$(dirname -- "$autosync_self")" && pwd)
+readonly AUTOSYNC_BIN_DIR
+# The engine script sits at the root of the plugin, next to omarchy-auto-sync.d/,
+# so its own directory is the plugin home. (Not the parent: when installed as a
+# symlink in ~/.local/bin, the resolved path is already the plugin copy.)
+AUTOSYNC_HOME=$AUTOSYNC_BIN_DIR
+readonly AUTOSYNC_HOME
+readonly AUTOSYNC_LIB_DIR="$AUTOSYNC_HOME/omarchy-auto-sync.d/lib"
+readonly AUTOSYNC_HANDLER_DIR="$AUTOSYNC_HOME/omarchy-auto-sync.d/handlers"
+readonly AUTOSYNC_USER_DIR="$AUTOSYNC_HOME/omarchy-auto-sync.d/apps"
+readonly AUTOSYNC_CONFIG_FILE="$AUTOSYNC_HOME/omarchy-auto-sync.d/config.json"
+
+usage() {
+  cat <<'USAGE'
+omarchy-auto-sync — theme every installed application from the active Omarchy theme
+
+Usage:
+  omarchy-auto-sync [sync]      Sync every application (default)
+  omarchy-auto-sync --theme     Sync theme colors only, ignoring the wallpaper
+  omarchy-auto-sync --wallpaper Sync only wallpaper-derived colors
+  omarchy-auto-sync --list      List detected applications and what would run
+  omarchy-auto-sync --check     Report dependencies and problems, change nothing
+  omarchy-auto-sync --version   Print the version
+  omarchy-auto-sync --help      This text
+
+The theme-set and wallpaper-change hooks call `sync` and `--wallpaper`
+respectively; running either by hand is safe and idempotent.
+
+Exclusions live in omarchy-auto-sync.d/config.json under "exclude".
+Drop a script defining apply_<name>() into omarchy-auto-sync.d/apps/ to add
+your own handler; it receives the palette as environment variables.
+USAGE
+}
+
+# ---------------------------------------------------------------------------
+# configuration
+# ---------------------------------------------------------------------------
+
+load_config() {
+  AUTOSYNC_EXCLUDES=()
+  AUTOSYNC_ELECTRON_FORCE_DARK=true
+  AUTOSYNC_STEAM=true
+  AUTOSYNC_FLATPAK=true
+  AUTOSYNC_QT=true
+  AUTOSYNC_WALLPAPER=true
+
+  [[ -f $AUTOSYNC_CONFIG_FILE ]] || return 0
+  command -v jq >/dev/null 2>&1 || {
+    log "jq not found; using built-in defaults"
+    return 0
+  }
+
+  # One jq invocation, tab-separated key/value pairs, read back with a case.
+  # Six separate jq calls would be six forks on a path that runs during every
+  # theme change, and the previous single-call version packed the values into a
+  # \u0001-joined string to tell strings from booleans -- a jq program that does
+  # not compile. Tabs do the same job with a separator that cannot appear in a
+  # boolean, and without a nested-quoting hazard.
+  #
+  # The `// true` defaults are duplicated in the shell above on purpose: that is
+  # what runs when jq is missing or the file is malformed, and a config typo
+  # should degrade to the defaults rather than to nothing.
+  local settings
+  settings=$(jq -r '
+    ((.exclude // [])[] | "exclude\t\(.)"),
+    "electron\t\(.electron.forceDark // true)",
+    "steam\t\(.steam.enabled // true)",
+    "flatpak\t\(.flatpak.enabled // true)",
+    "qt\t\(.qt.enabled // true)",
+    "wallpaper\t\(.wallpaper.enabled // true)"
+  ' "$AUTOSYNC_CONFIG_FILE" 2>/dev/null)
+
+  [[ -n $settings ]] || {
+    log "could not parse $AUTOSYNC_CONFIG_FILE; using built-in defaults"
+    return 0
+  }
+
+  local line key value
+  while IFS=$'\t' read -r key value; do
+    case "$key" in
+      exclude) AUTOSYNC_EXCLUDES+=("$value") ;;
+      electron) AUTOSYNC_ELECTRON_FORCE_DARK=$value ;;
+      steam) AUTOSYNC_STEAM=$value ;;
+      flatpak) AUTOSYNC_FLATPAK=$value ;;
+      qt) AUTOSYNC_QT=$value ;;
+      wallpaper) AUTOSYNC_WALLPAPER=$value ;;
+    esac
+  done <<<"$settings"
+}
+
+# ---------------------------------------------------------------------------
+# palettes
+# ---------------------------------------------------------------------------
+
+# Publish the palette to handlers as environment variables.
+#
+# Exported rather than passed as arguments so a user handler in apps/ reads them
+# the same way a built-in one does, without knowing which subset it needs.
+export_palette() {
+  export AUTOSYNC_THEME_NAME MODE AUTOSYNC_THEME_COLORS
+  export AUTOSYNC_BACKGROUND AUTOSYNC_BACKPAPER_NAME
+  export BACKGROUND FOREGROUND ACCENT ACCENT_UNIFIED ACCENT_HOVER
+  export DARK_BACKGROUND DARKER_BACKGROUND LIGHTER_BACKGROUND
+  export SELECTION SELECTION_FOREGROUND MUTED
+  export RED YELLOW GREEN BLUE MAGENTA CYAN
+  export WALL_SOURCE WALL_MODE
+  export WALL_PRIMARY WALL_BACKGROUND WALL_SURFACE WALL_SURFACE_LOW
+  export WALL_SURFACE_HIGH WALL_FOREGROUND WALL_MUTED WALL_OUTLINE
+  export AUTOSYNC_STATE_DIR
+}
+
+# ---------------------------------------------------------------------------
+# handler dispatch
+# ---------------------------------------------------------------------------
+
+# Run one handler, containing any failure to that handler.
+#
+# A missing dependency, an app with a config this plugin cannot parse, a
+# read-only directory: all of them are that one handler's problem. Letting one
+# fail loudly but not fatally is what keeps a theme switch from being blocked by
+# an unrelated app.
+run_handler() {
+  local name="$1" fn="$2"
+
+  if "$fn"; then
+    AUTOSYNC_APPLIED+=("$name")
+  else
+    AUTOSYNC_FAILED+=("$name")
+    log "$name reported a problem; continuing"
+  fi
+}
+
+# True when a handler opted into the wallpaper-only pass.
+#
+# The convention is that the function name contains "wallpaper", so
+# apply_gtk and apply_gtk_wallpaper are the same handler's full and narrow
+# halves. A filename is not enough: one handler file legitimately declares both.
+handler_takes_wallpaper() {
+  [[ $1 == *wallpaper* ]]
+}
+
+# Discover and run every apply_* function, in filename order.
+#
+# Order comes from the filename prefix (00-gtk before 90-wallpaper-sync) rather
+# than from the function name, so the sequence is visible in a directory listing
+# and changes by renaming a file.
+run_handlers() {
+  local wallpaper_only="${1:-false}"
+  local file fn name
+
+  local -a sorted=()
+  shopt -s nullglob
+  for file in "$AUTOSYNC_HANDLER_DIR"/*.sh "$AUTOSYNC_USER_DIR"/*.sh; do
+    [[ -f $file ]] || continue
+    sorted+=("$file")
+  done
+  shopt -u nullglob
+  ((${#sorted[@]} == 0)) && return 0
+
+  # printf/sort rather than an array sort: bash has no portable array sort, and
+  # this keeps a nullglob-empty array from expanding to a single empty element.
+  local -a ordered=()
+  while IFS= read -r file; do
+    ordered+=("$file")
+  done < <(printf '%s\n' "${sorted[@]}" | sort)
+
+  # Declare the pass's results before any handler is sourced. AUTOSYNC_DONE is
+  # what keeps a function from running twice: declare -F lists every apply_*
+  # currently defined, which after sourcing the first handler includes that
+  # handler's functions on every later iteration. Without this set, a run with
+  # three handler files reports each of them three times and rewrites every
+  # config three times over.
+  declare -gA AUTOSYNC_DONE=()
+
+  for file in "${ordered[@]}"; do
+    # shellcheck disable=SC1090
+    if ! source "$file"; then
+      log "cannot load handler ${file##*/}"
+      continue
+    fi
+
+    while IFS= read -r fn; do
+      [[ -n ${AUTOSYNC_DONE[$fn]:-} ]] && continue
+      AUTOSYNC_DONE[$fn]=1
+
+      name=${fn#apply_}
+      if [[ $wallpaper_only == true ]] && ! handler_takes_wallpaper "$name"; then
+        continue
+      fi
+      run_handler "${name//_/-}" "$fn"
+    done < <(declare -F | awk '{ print $3 }' | grep '^apply_' | sort)
+  done
+}
+
+# ---------------------------------------------------------------------------
+# modes
+# ---------------------------------------------------------------------------
+
+mode_sync() {
+  run_handlers false
+  autosync_save_inventory
+}
+
+# Wallpaper-only pass.
+#
+# Deliberately narrower than a full sync: the theme has not changed, so
+# regenerating every theme-derived config would touch mtimes across the desktop
+# for nothing. Only handlers whose function name contains "wallpaper" run.
+mode_wallpaper() {
+  run_handlers true
+}
+
+# Theme-only pass: every handler, but with the wallpaper palette suppressed.
+#
+# Used by the theme-set hook. The distinction from --wallpaper is the whole point
+# of having both: this one establishes the theme palette everywhere at once, and
+# --wallpaper then layers the wallpaper tint on top once Better Bar's palette for
+# the new wallpaper has actually been generated.
+mode_theme() {
+  run_handlers false
+}
+
+mode_list() {
+  printf 'theme: %s (%s)\n' "${AUTOSYNC_THEME_NAME:-unknown}" "$MODE"
+  printf 'wallpaper palette: %s\n\n' "$WALL_SOURCE"
+
+  # One scan, reused for both the entry list and the electron count. The scan
+  # reads ~50 files and forks one awk per file; doing it twice for one screen of
+  # output is the kind of waste that makes a status command feel slow.
+  local -a entries=()
+  local line
+  while IFS= read -r line; do
+    entries+=("$line")
+  done < <(autosync_desktop_entries)
+
+  local electron_count=0
+  local id name exec src tag
+
+  printf 'desktop entries (%s):\n' "${#entries[@]}"
+  for line in "${entries[@]}"; do
+    IFS=$'\t' read -r id name exec src <<<"$line"
+    tag=""
+    autosync_is_electron "$exec" && {
+      tag=" [electron]"
+      ((electron_count++))
+    }
+    autosync_is_excluded "$id" && tag="$tag [excluded]"
+    printf '  %-42s %-24s%s\n' "$id" "$name" "$tag"
+  done
+
+  printf '\nhandlers (%s):\n' "${#ordered_handler_files[@]}"
+  local f
+  for f in "${ordered_handler_files[@]}"; do
+    printf '  %s\n' "${f##*/}"
+  done
+
+  printf '\nexclusions: %s\n' "${AUTOSYNC_EXCLUDES[*]:-none}"
+}
+
+mode_check() {
+  local rc=0 dep
+
+  printf 'omarchy-auto-sync %s\n\n' "$AUTOSYNC_VERSION"
+
+  printf 'dependencies:\n'
+  for dep in jq gsettings flatpak; do
+    if command -v "$dep" >/dev/null 2>&1; then
+      printf '  %-12s ok\n' "$dep"
+    else
+      printf '  %-12s MISSING\n' "$dep"
+      [[ $dep == jq ]] || printf '               (optional; the handler that uses it is skipped)\n'
+      rc=1
+    fi
+  done
+
+  printf '\npaths:\n'
+  printf '  %-24s %s\n' "plugin home" "$AUTOSYNC_HOME"
+  printf '  %-24s %s\n' "theme colors" "$AUTOSYNC_THEME_COLORS"
+  if [[ -f $AUTOSYNC_THEME_COLORS ]]; then
+    printf '  %-24s %s\n' "active theme" "${AUTOSYNC_THEME_NAME:-unknown} ($MODE)"
+  else
+    printf '  %-24s MISSING\n' "active theme"
+    rc=1
+  fi
+
+  local wallpaper_state="none"
+  if [[ -L $AUTOSYNC_STATE_DIR/current/background ]]; then
+    wallpaper_state=$(basename "$(readlink -f "$AUTOSYNC_STATE_DIR/current/background")")
+  fi
+  printf '  %-24s %s\n' "wallpaper" "$wallpaper_state"
+  printf '  %-24s %s\n' "wallpaper palette" "$WALL_SOURCE"
+
+  printf '\ndetected: %s desktop entries, %s packages\n' \
+    "$(autosync_desktop_entries | wc -l)" "$(autosync_package_inventory | wc -l)"
+
+  local electron_count=0 id name exec src
+  while IFS=$'\t' read -r id name exec src; do
+    autosync_is_electron "$exec" && ((electron_count++))
+  done < <(autosync_desktop_entries)
+  printf '  %-24s %s\n' "electron/chromium entries" "$electron_count"
+  printf '  %-24s %s\n' "new since last run" "$(autosync_new_packages | wc -l)"
+
+  printf '\nconfig: %s\n' "$AUTOSYNC_CONFIG_FILE"
+  [[ -f $AUTOSYNC_CONFIG_FILE ]] || printf '  (absent; built-in defaults in use)\n'
+
+  return $rc
+}
+
+# ---------------------------------------------------------------------------
+# main
+# ---------------------------------------------------------------------------
+
+main() {
+  local mode="sync"
+
+  case "${1:-sync}" in
+    sync | "") mode=sync ;;
+    --wallpaper | wallpaper) mode=wallpaper ;;
+    --theme | theme) mode=theme ;;
+    --list | list) mode=list ;;
+    --check | check) mode=check ;;
+    --version | -v)
+      printf 'omarchy-auto-sync %s\n' "$AUTOSYNC_VERSION"
+      return 0
+      ;;
+    --help | -h | help)
+      usage
+      return 0
+      ;;
+    *)
+      log "unknown option: $1"
+      usage >&2
+      return 2
+      ;;
+  esac
+
+  AUTOSYNC_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy"
+  readonly AUTOSYNC_STATE_DIR
+  AUTOSYNC_THEME_COLORS="$AUTOSYNC_STATE_DIR/current/theme/colors.toml"
+  readonly AUTOSYNC_THEME_COLORS
+
+  # shellcheck source=lib/common.sh
+  source "$AUTOSYNC_LIB_DIR/common.sh" || {
+    log "cannot load lib/common.sh"
+    return 1
+  }
+  # shellcheck source=lib/palette.sh
+  source "$AUTOSYNC_LIB_DIR/palette.sh" || {
+    log "cannot load lib/palette.sh"
+    return 1
+  }
+  # shellcheck source=lib/detect.sh
+  source "$AUTOSYNC_LIB_DIR/detect.sh" || {
+    log "cannot load lib/detect.sh"
+    return 1
+  }
+
+  load_config
+
+  # Set before the palette layer runs. A theme change and a wallpaper change are
+  # two separate events that can overlap: omarchy-theme-set swaps the background
+  # symlink, then better-sync regenerates Better Bar's palette for it, and that
+  # regeneration takes a couple of seconds because it shells out to magick. A
+  # theme sync that read the palette here would read the *previous* wallpaper's
+  # colors and write them into every app config, then have to be corrected.
+  #
+  # Rather than sleep and hope the race is won -- which is timing-dependent and
+  # therefore flaky under load -- the theme pass simply does not read the
+  # wallpaper. The wallpaper systemd unit fires on the same directory change and
+  # adds the wallpaper tint a moment later with a settled palette. One write
+  # each, in a known order, no flap.
+  AUTOSYNC_THEME_ONLY=false
+  [[ $mode == theme ]] && AUTOSYNC_THEME_ONLY=true
+
+  if ! load_theme_palette; then
+    log "no theme applied yet; run 'omarchy theme set <name>' first"
+    return 1
+  fi
+  load_wallpaper_palette
+  export_palette
+
+  AUTOSYNC_APPLIED=()
+  AUTOSYNC_FAILED=()
+
+  # Handler files, ordered once. Both run_handlers and mode_list need this list,
+  # and rebuilding it per call is what made --list re-glob the tree.
+  ordered_handler_files=()
+  local file
+  shopt -s nullglob
+  for file in "$AUTOSYNC_HANDLER_DIR"/*.sh "$AUTOSYNC_USER_DIR"/*.sh; do
+    [[ -f $file ]] || continue
+    ordered_handler_files+=("$file")
+  done
+  shopt -u nullglob
+  if ((${#ordered_handler_files[@]} > 0)); then
+    local -a tmp=()
+    while IFS= read -r file; do
+      tmp+=("$file")
+    done < <(printf '%s\n' "${ordered_handler_files[@]}" | sort)
+    ordered_handler_files=("${tmp[@]}")
+  fi
+
+  case "$mode" in
+    list) mode_list ;;
+    check) mode_check ;;
+    wallpaper) mode_wallpaper ;;
+    theme) mode_theme ;;
+    sync) mode_sync ;;
+  esac
+
+  if ((${#AUTOSYNC_APPLIED[@]} > 0 || ${#AUTOSYNC_FAILED[@]} > 0)); then
+    log "applied: ${AUTOSYNC_APPLIED[*]:-none}"
+    ((${#AUTOSYNC_FAILED[@]} > 0)) && log "needs attention: ${AUTOSYNC_FAILED[*]}"
+  fi
+
+  # A failed handler is reported, not fatal: the theme change that triggered
+  # this run has already happened and must not be reported as broken.
+  return 0
+}
+
+main "$@"
