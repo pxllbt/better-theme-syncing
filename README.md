@@ -52,7 +52,8 @@ than a leftover file.
 | `better-theme-sync --theme` | Theme colors only, ignoring the wallpaper |
 | `better-theme-sync --wallpaper` | Wallpaper palette only |
 | `better-theme-sync --list` | Every application found, and what would be themed |
-| `better-theme-sync --check` | Dependencies, paths, counts. Changes nothing. |
+| `better-theme-sync --check` | Dependencies, paths, counts, update status. Changes nothing. |
+| `better-theme-sync --check-update` | Update status as one line of JSON, for scripts |
 
 All are idempotent. Nothing is written unless the content actually changed.
 
@@ -256,6 +257,18 @@ wallpaper. Prefer `ACCENT_UNIFIED`, or the desktop ends up with two accents agai
 - A failing handler is reported and the run continues. One app with an unreadable config cannot
   block a theme switch.
 
+## Update
+
+Installed by git clone, so updating it is a pull:
+
+```bash
+git -C ~/.config/omarchy/plugins/better-theme-syncing pull
+```
+
+`--check` reports whether the checkout is behind, and the `post-boot` hook pops a
+notification once when a new version is published. It stays quiet after that until
+there is something newer.
+
 ## Requirements
 
 `bash` 4.4+, `gawk`, `jq`, `gsettings`. All present on Omarchy.
@@ -267,6 +280,7 @@ Without it the theme pass works unchanged and the wallpaper pass becomes a no-op
 
 ```
 better-theme-sync                         engine
+check-update.sh                           update check, used by --check
 better-theme-sync.d/
   config.json
   lib/{common,palette,detect}.sh

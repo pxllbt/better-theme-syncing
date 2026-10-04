@@ -57,6 +57,7 @@ Usage:
   better-theme-sync --wallpaper Sync only wallpaper-derived colors
   better-theme-sync --list      List detected applications and what would run
   better-theme-sync --check     Report dependencies and problems, change nothing
+  better-theme-sync --check-update  Report update status as one line of JSON
   better-theme-sync --version   Print the version
   better-theme-sync --help      This text
 
@@ -343,7 +344,43 @@ mode_check() {
   printf '\nconfig: %s\n' "$AUTOSYNC_CONFIG_FILE"
   [[ -f $AUTOSYNC_CONFIG_FILE ]] || printf '  (absent; built-in defaults in use)\n'
 
+  update_line
   return $rc
+}
+
+# Reports the checkout's position against the published branch. Folds into
+# --check so there is one command to ask "is anything wrong", and never sets
+# rc: an update being available is not a fault, and a failed check is already
+# reported by the command that ran it.
+update_line() {
+  local json
+  json=$("$AUTOSYNC_HOME/check-update.sh" 2>/dev/null) || return 0
+  [[ -n "$json" ]] || return 0
+
+  local available current new behind err
+  available=$(jq -r '.update_available // false' <<<"$json" 2>/dev/null) || return 0
+  current=$(jq -r '.current_version // ""' <<<"$json" 2>/dev/null)
+  new=$(jq -r '.new_version // ""' <<<"$json" 2>/dev/null)
+  behind=$(jq -r '.commits_behind // 0' <<<"$json" 2>/dev/null)
+  err=$(jq -r '.error // ""' <<<"$json" 2>/dev/null)
+
+  printf '\nupdate:\n'
+  if [[ $available == true ]]; then
+    local detail=""
+    [[ -n "$new" && "$new" != "$current" ]] && detail="v$current -> v$new"
+    [[ ${behind:-0} -gt 0 ]] && detail="${detail:+$detail, }${behind} commit(s) behind"
+    printf '  %-24s %s\n' "status" "update available${detail:+ ($detail)}"
+    printf '  %-24s %s\n' "update with" "git -C $AUTOSYNC_HOME pull"
+  elif [[ -n "$err" ]]; then
+    printf '  %-24s %s\n' "status" "could not check ($err)"
+  else
+    printf '  %-24s %s\n' "status" "up to date${current:+ (v$current)}"
+  fi
+}
+
+# One line of JSON, for scripts. Same output as check-update.sh.
+mode_check_update() {
+  "$AUTOSYNC_HOME/check-update.sh" 2>/dev/null || printf '{"error":"checker failed"}\n'
 }
 
 # ---------------------------------------------------------------------------
@@ -359,6 +396,7 @@ main() {
     --theme | theme) mode=theme ;;
     --list | list) mode=list ;;
     --check | check) mode=check ;;
+    --check-update | check-update) mode=check-update ;;
     --version | -v)
       printf 'better-theme-sync %s\n' "$AUTOSYNC_VERSION"
       return 0
@@ -443,6 +481,7 @@ main() {
   case "$mode" in
     list) mode_list ;;
     check) mode_check ;;
+    check-update) mode_check_update ;;
     wallpaper) mode_wallpaper ;;
     theme) mode_theme ;;
     sync) mode_sync ;;
