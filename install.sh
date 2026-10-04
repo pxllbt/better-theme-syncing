@@ -45,14 +45,12 @@ ln -sfn "$PLUGIN_SRC/better-theme-sync" "$LOCAL_BIN/better-theme-sync" ||
   fail "cannot link $LOCAL_BIN/better-theme-sync"
 log "linked ~/.local/bin/better-theme-sync"
 
-# Compatibility shims for the two names this tool shipped under before it settled
-# on `better-theme-sync`. Both warn on every run and then hand over, so an old
-# script, a muscle-memory command, or a hook written against the previous name
-# keeps working while making the rename visible instead of silent.
+# Shims for the two earlier names, so an existing script or habit keeps working.
+# Both print a warning and exec the engine rather than failing.
 #
-# `better-sync` is deliberately loud. Better Bar ships a hook of its own by that
-# name, so a silent shim would be the exact ambiguity this project is meant to
-# remove.
+# `better-sync` warns on every run instead of forwarding silently. Better Bar
+# installs a hook of its own by that name, and a quiet shim would make the two
+# indistinguishable at the point where someone is trying to tell them apart.
 for old_name in omarchy-auto-sync better-sync; do
   ln -sfn "$PLUGIN_SRC/shims/$old_name" "$LOCAL_BIN/$old_name" ||
     warn "could not link the $old_name shim"

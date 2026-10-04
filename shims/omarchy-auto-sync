@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# Compatibility shim: `omarchy-auto-sync` was renamed to `better-theme-sync`.
+# Shim for the original name of this tool. Now `better-theme-sync`.
 #
-# This name is kept so existing scripts and habits keep working. It warns once
-# per run and then hands over. It will be removed in a future release.
+# Kept so existing scripts keep working. Warns on every run, then forwards.
 set -uo pipefail
 
-printf 'omarchy-auto-sync: renamed to better-theme-sync — this shim warns and forwards.\n' >&2
-printf 'omarchy-auto-sync: update your command to `better-theme-sync`.\n' >&2
+printf 'omarchy-auto-sync: renamed to better-theme-sync, forwarding.\n' >&2
 
 exec better-theme-sync "$@"

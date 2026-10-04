@@ -16,11 +16,10 @@ as you install more.
 Works with [Better Bar](https://github.com/amanhex/Better)'s wallpaper palette, and does not
 compete with `omarchy-rice-sync`, the `better-sync` hook, or the Omarchy shell's own theming.
 
-> **Naming note.** Better Bar ships a hook of its own called `better-sync`. It is unrelated to this
-> project and stays where it is. Nothing here reads, writes, or replaces it.
-
-> **Renamed.** This tool was previously `omarchy-auto-sync`, and briefly `better-sync`. Both old
-> commands still work through a shim that warns and forwards to `better-theme-sync`.
+> **Naming notes.** Better Bar installs a hook of its own called `better-sync`; it is unrelated to
+> this project and nothing here reads, writes, or replaces it. This tool has also been renamed —
+> it was `omarchy-auto-sync`, and briefly `better-sync`. Both old commands still run through a
+> shim that warns and forwards.
 
 ---
 
@@ -286,4 +285,4 @@ install.sh  uninstall.sh
 
 ## License
 
-MIT.
+MIT — see [LICENSE](LICENSE).
