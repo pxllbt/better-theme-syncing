@@ -178,9 +178,19 @@ load_wallpaper_palette() {
   # colors can record it in its output and a reader can tell which picture the
   # colors came from. The basename, not the full path: this ends up in a comment
   # in a config file the user may read.
-  AUTOSYNC_BACKGROUND=$(readlink -f "$AUTOSYNC_STATE_DIR/current/background" 2>/dev/null) || AUTOSYNC_BACKGROUND=""
+  #
+  # The -e test is not paranoia. readlink -f resolves as far as it can and still
+  # exits 0 when only the final component is missing, so on a machine whose
+  # background symlink is absent it cheerfully returns ".../current/background"
+  # and the generated config would claim the wallpaper is named "background".
+  AUTOSYNC_BACKGROUND=""
   AUTOSYNC_BACKPAPER_NAME=""
-  [[ -n $AUTOSYNC_BACKGROUND ]] && AUTOSYNC_BACKPAPER_NAME=$(basename -- "$AUTOSYNC_BACKGROUND")
+  local resolved
+  resolved=$(readlink -f "$AUTOSYNC_STATE_DIR/current/background" 2>/dev/null) || resolved=""
+  if [[ -n $resolved && -f $resolved ]]; then
+    AUTOSYNC_BACKGROUND=$resolved
+    AUTOSYNC_BACKPAPER_NAME=$(basename -- "$resolved")
+  fi
   return 0
 }
 
@@ -197,6 +207,14 @@ wall_fallback_to_theme() {
   WALL_OUTLINE=$MUTED
   WALL_MODE=$MODE
   ACCENT_UNIFIED=$ACCENT
-  AUTOSYNC_BACKGROUND=$(readlink -f "$AUTOSYNC_STATE_DIR/current/background" 2>/dev/null) || AUTOSYNC_BACKGROUND=""
+
+  AUTOSYNC_BACKGROUND=""
+  AUTOSYNC_BACKPAPER_NAME=""
+  local resolved
+  resolved=$(readlink -f "$AUTOSYNC_STATE_DIR/current/background" 2>/dev/null) || resolved=""
+  if [[ -n $resolved && -f $resolved ]]; then
+    AUTOSYNC_BACKGROUND=$resolved
+    AUTOSYNC_BACKPAPER_NAME=$(basename -- "$resolved")
+  fi
   return 0
 }
