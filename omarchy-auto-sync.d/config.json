@@ -25,6 +25,6 @@
   },
   "wallpaper": {
     "_comment": "Let the wallpaper palette tint the theme accent when the two hues agree. See harmonize_accent in lib/common.sh.",
-    "enabled": true
+    "enabled": false
   }
 }

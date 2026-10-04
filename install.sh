@@ -13,7 +13,6 @@ set -euo pipefail
 
 PLUGIN_SRC=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 readonly PLUGIN_SRC
-readonly PLUGIN_NAME="auto-sync"
 readonly LOCAL_BIN="$HOME/.local/bin"
 readonly HOOKS_DIR="$HOME/.config/omarchy/hooks"
 readonly HOOK_SRC_DIR="$PLUGIN_SRC/hooks"

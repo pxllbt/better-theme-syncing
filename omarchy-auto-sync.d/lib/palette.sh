@@ -38,7 +38,6 @@ theme_color() {
 # as plain variables and never have to know that omarchy-theme-color exists. A
 # handler that shells out per color would fork 15+ times per run.
 load_theme_palette() {
-  local slug
 
   # `$(< file)` is bash's read-the-file shorthand, but it only works as the
   # whole word; adding a redirect turns it back into an ordinary (and empty)
@@ -121,7 +120,12 @@ load_wallpaper_palette() {
   # comment on AUTOSYNC_THEME_ONLY for why: during a theme change the palette on
   # disk still describes the previous wallpaper, so reading it would write stale
   # colors that the wallpaper pass then has to undo.
-  if [[ ${AUTOSYNC_THEME_ONLY:-false} == true ]]; then
+  #
+  # The config switch lands here too, and deliberately in the same place. Offering
+  # a documented option and not honouring it is worse than not offering it at all:
+  # both config.json and the README list this key, so a user who sets it and
+  # watches their tint stay has been told a lie.
+  if [[ ${AUTOSYNC_THEME_ONLY:-false} == true || ${AUTOSYNC_WALLPAPER:-true} != true ]]; then
     wall_fallback_to_theme
     return 0
   fi

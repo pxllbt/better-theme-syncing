@@ -89,22 +89,24 @@ load_config() {
 
   # One jq invocation, tab-separated key/value pairs, read back with a case.
   # Six separate jq calls would be six forks on a path that runs during every
-  # theme change, and the previous single-call version packed the values into a
-  # \u0001-joined string to tell strings from booleans -- a jq program that does
-  # not compile. Tabs do the same job with a separator that cannot appear in a
-  # boolean, and without a nested-quoting hazard.
+  # theme change.
   #
-  # The `// true` defaults are duplicated in the shell above on purpose: that is
-  # what runs when jq is missing or the file is malformed, and a config typo
-  # should degrade to the defaults rather than to nothing.
+  # The default is applied with an explicit null test rather than `// true`.
+  # In jq, `//` is the alternative operator and treats false as absent, so
+  # `.enabled // true` answers `true` for a key the user explicitly set to
+  # false. That is the opposite of what the key means, and it made every toggle
+  # in this file impossible to turn off. `.enabled | if . == null then true
+  # else . end` distinguishes "absent" from "false", which is the only reason
+  # the default exists at all.
   local settings
   settings=$(jq -r '
+    def on: if . == null then true else . end;
     ((.exclude // [])[] | "exclude\t\(.)"),
-    "electron\t\(.electron.forceDark // true)",
-    "steam\t\(.steam.enabled // true)",
-    "flatpak\t\(.flatpak.enabled // true)",
-    "qt\t\(.qt.enabled // true)",
-    "wallpaper\t\(.wallpaper.enabled // true)"
+    "electron\t\(.electron.forceDark | on)",
+    "steam\t\(.steam.enabled | on)",
+    "flatpak\t\(.flatpak.enabled | on)",
+    "qt\t\(.qt.enabled | on)",
+    "wallpaper\t\(.wallpaper.enabled | on)"
   ' "$AUTOSYNC_CONFIG_FILE" 2>/dev/null)
 
   [[ -n $settings ]] || {
@@ -144,6 +146,7 @@ export_palette() {
   export WALL_PRIMARY WALL_BACKGROUND WALL_SURFACE WALL_SURFACE_LOW
   export WALL_SURFACE_HIGH WALL_FOREGROUND WALL_MUTED WALL_OUTLINE
   export AUTOSYNC_STATE_DIR
+  export AUTOSYNC_WALLPAPER AUTOSYNC_THEME_ONLY
 }
 
 # ---------------------------------------------------------------------------
@@ -279,7 +282,7 @@ mode_list() {
     tag=""
     autosync_is_electron "$exec" && {
       tag=" [electron]"
-      ((electron_count++))
+      electron_count=$((electron_count + 1))
     }
     autosync_is_excluded "$id" && tag="$tag [excluded]"
     printf '  %-42s %-24s%s\n' "$id" "$name" "$tag"
@@ -330,9 +333,9 @@ mode_check() {
   printf '\ndetected: %s desktop entries, %s packages\n' \
     "$(autosync_desktop_entries | wc -l)" "$(autosync_package_inventory | wc -l)"
 
-  local electron_count=0 id name exec src
-  while IFS=$'\t' read -r id name exec src; do
-    autosync_is_electron "$exec" && ((electron_count++))
+  local electron_count=0 id name exec source
+  while IFS=$'\t' read -r id name exec source; do
+    autosync_is_electron "$exec" && electron_count=$((electron_count + 1))
   done < <(autosync_desktop_entries)
   printf '  %-24s %s\n' "electron/chromium entries" "$electron_count"
   printf '  %-24s %s\n' "new since last run" "$(autosync_new_packages | wc -l)"
