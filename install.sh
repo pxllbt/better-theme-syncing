@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Installer for omarchy-auto-sync.
+# Installer for better-theme-sync.
 #
 # Installs by symlink rather than by copy, so the git checkout in
-# ~/.config/omarchy/plugins/auto-sync stays the single source of truth and
+# ~/.config/omarchy/plugins/better-theme-syncing stays the single source of truth and
 # `git pull` updates the plugin with no reinstall step. A copy would drift
 # silently and leave the user editing a file that is no longer the one running.
 #
@@ -20,14 +20,14 @@ readonly HOOK_SRC_DIR="$PLUGIN_SRC/hooks"
 log() { printf '  %s\n' "$*"; }
 warn() { printf '  ! %s\n' "$*" >&2; }
 fail() {
-  printf 'omarchy-auto-sync: %s\n' "$*" >&2
+  printf 'better-theme-sync: %s\n' "$*" >&2
   exit 1
 }
 
 command -v omarchy-theme-color >/dev/null 2>&1 ||
   fail "omarchy-theme-color not found. This plugin themes an Omarchy system; it will not work elsewhere."
 
-printf '\nomarchy-auto-sync\n\n'
+printf '\nbetter-theme-sync\n\n'
 
 # ---------------------------------------------------------------------------
 # layout
@@ -39,11 +39,25 @@ for dir in theme-set.d post-update.d post-boot.d; do
   mkdir -p "$HOOKS_DIR/$dir"
 done
 
-# The engine, as `omarchy-auto-sync` on PATH so it can be run by hand and by the
+# The engine, as `better-theme-sync` on PATH so it can be run by hand and by the
 # wallpaper systemd unit.
-ln -sfn "$PLUGIN_SRC/omarchy-auto-sync" "$LOCAL_BIN/omarchy-auto-sync" ||
-  fail "cannot link $LOCAL_BIN/omarchy-auto-sync"
-log "linked ~/.local/bin/omarchy-auto-sync"
+ln -sfn "$PLUGIN_SRC/better-theme-sync" "$LOCAL_BIN/better-theme-sync" ||
+  fail "cannot link $LOCAL_BIN/better-theme-sync"
+log "linked ~/.local/bin/better-theme-sync"
+
+# Compatibility shims for the two names this tool shipped under before it settled
+# on `better-theme-sync`. Both warn on every run and then hand over, so an old
+# script, a muscle-memory command, or a hook written against the previous name
+# keeps working while making the rename visible instead of silent.
+#
+# `better-sync` is deliberately loud. Better Bar ships a hook of its own by that
+# name, so a silent shim would be the exact ambiguity this project is meant to
+# remove.
+for old_name in omarchy-auto-sync better-sync; do
+  ln -sfn "$PLUGIN_SRC/shims/$old_name" "$LOCAL_BIN/$old_name" ||
+    warn "could not link the $old_name shim"
+done
+log "linked shims: omarchy-auto-sync, better-sync"
 
 # Hooks. theme-set runs the full sync; the other two catch installations that
 # happened without a theme change, which is the case that otherwise leaves a
@@ -100,8 +114,8 @@ log "installed $installed_hooks hook(s)"
 # no system file, and it is enabled for the current user only.
 
 readonly UNIT_DIR="$HOME/.config/systemd/user"
-readonly WATCH_PATH_UNIT="$UNIT_DIR/omarchy-auto-sync-wallpaper.path"
-readonly WATCH_SERVICE_UNIT="$UNIT_DIR/omarchy-auto-sync-wallpaper.service"
+readonly WATCH_PATH_UNIT="$UNIT_DIR/better-theme-sync-wallpaper.path"
+readonly WATCH_SERVICE_UNIT="$UNIT_DIR/better-theme-sync-wallpaper.service"
 
 if command -v systemctl >/dev/null 2>&1; then
   mkdir -p "$UNIT_DIR"
@@ -126,7 +140,7 @@ Type=oneshot
 # starting inside it would read the outgoing theme. The palette ordering is not
 # handled here at all -- the path unit watches the palette file for that.
 ExecStartPre=/bin/sleep 2
-ExecStart=$LOCAL_BIN/omarchy-auto-sync --wallpaper
+ExecStart=$LOCAL_BIN/better-theme-sync --wallpaper
 UNIT
 
   cat >"$WATCH_PATH_UNIT" <<UNIT
@@ -161,8 +175,8 @@ WantedBy=default.target
 UNIT
 
   systemctl --user daemon-reload >/dev/null 2>&1 || warn "systemd --user daemon-reload failed"
-  systemctl --user enable --now omarchy-auto-sync-wallpaper.path >/dev/null 2>&1 ||
-    warn "could not enable the wallpaper watcher; run: systemctl --user enable --now omarchy-auto-sync-wallpaper.path"
+  systemctl --user enable --now better-theme-sync-wallpaper.path >/dev/null 2>&1 ||
+    warn "could not enable the wallpaper watcher; run: systemctl --user enable --now better-theme-sync-wallpaper.path"
   log "enabled the wallpaper watcher (systemd --user)"
 else
   warn "systemctl not found; wallpaper-only changes will sync on the next theme change"
@@ -173,7 +187,7 @@ fi
 # ---------------------------------------------------------------------------
 
 printf '\n'
-if "$LOCAL_BIN/omarchy-auto-sync" --check; then
+if "$LOCAL_BIN/better-theme-sync" --check; then
   printf '\nInstalled.\n\n'
 else
   printf '\nInstalled, with warnings above.\n\n'
@@ -182,15 +196,15 @@ fi
 cat <<'NEXT'
 Next steps
 ----------
-  omarchy-auto-sync --check      what is detected and what is missing
-  omarchy-auto-sync --list       every app found, and what would be themed
-  omarchy-auto-sync              run a sync by hand at any time
+  better-theme-sync --check      what is detected and what is missing
+  better-theme-sync --list       every app found, and what would be themed
+  better-theme-sync              run a sync by hand at any time
   omarchy theme set <name>       a theme change runs the full sync
   omarchy theme bg next          a wallpaper change runs the wallpaper half
 
-Options live in omarchy-auto-sync.d/config.json -- see the README.
+Options live in better-theme-sync.d/config.json -- see the README.
 To add your own app, drop a script defining apply_<name>() into
-omarchy-auto-sync.d/apps/ and give it to Omarchy with `omarchy-auto-sync`.
+better-theme-sync.d/apps/ and give it to Omarchy with `better-theme-sync`.
 
 To uninstall: ./uninstall.sh
 NEXT

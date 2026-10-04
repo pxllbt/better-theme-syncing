@@ -40,4 +40,4 @@ reconciled with the wallpaper, and it is what keeps the desktop to one accent.
 
 Name the function `apply_<name>_wallpaper` to also run on a wallpaper-only change.
 
-Then run `omarchy-auto-sync` to see it work. `--list` shows the handlers it found.
+Then run `better-theme-sync` to see it work. `--list` shows the handlers it found.

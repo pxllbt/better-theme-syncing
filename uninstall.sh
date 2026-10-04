@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Uninstaller for omarchy-auto-sync.
+# Uninstaller for better-theme-sync.
 #
 # Removes only what install.sh created: the symlinks and the two systemd units.
 #
@@ -12,7 +12,7 @@
 
 set -uo pipefail
 
-readonly PLUGIN_NAME="auto-sync"
+readonly PLUGIN_NAME="better-theme-syncing"
 readonly LOCAL_BIN="$HOME/.local/bin"
 readonly HOOKS_DIR="$HOME/.config/omarchy/hooks"
 readonly UNIT_DIR="$HOME/.config/systemd/user"
@@ -23,7 +23,7 @@ case "${1:-}" in
   "") ;;
   -h | --help)
     cat <<'USAGE'
-omarchy-auto-sync uninstall
+better-theme-sync uninstall
 
   ./uninstall.sh           remove the symlinks and systemd units, keep configs
   ./uninstall.sh --purge   also strip this plugin's block from the configs it writes
@@ -38,19 +38,19 @@ esac
 
 log() { printf '  %s\n' "$*"; }
 
-printf '\nomarchy-auto-sync uninstall\n\n'
+printf '\nbetter-theme-sync uninstall\n\n'
 
 # ---------------------------------------------------------------------------
 # systemd
 # ---------------------------------------------------------------------------
 
 if command -v systemctl >/dev/null 2>&1; then
-  systemctl --user disable --now omarchy-auto-sync-wallpaper.path >/dev/null 2>&1
-  systemctl --user disable --now omarchy-auto-sync-wallpaper.service >/dev/null 2>&1
-  rm -f "$UNIT_DIR/omarchy-auto-sync-wallpaper.path" \
-    "$UNIT_DIR/omarchy-auto-sync-wallpaper.service"
+  systemctl --user disable --now better-theme-sync-wallpaper.path >/dev/null 2>&1
+  systemctl --user disable --now better-theme-sync-wallpaper.service >/dev/null 2>&1
+  rm -f "$UNIT_DIR/better-theme-sync-wallpaper.path" \
+    "$UNIT_DIR/better-theme-sync-wallpaper.service"
   systemctl --user daemon-reload >/dev/null 2>&1
-  systemctl --user reset-failed omarchy-auto-sync-wallpaper.service >/dev/null 2>&1
+  systemctl --user reset-failed better-theme-sync-wallpaper.service >/dev/null 2>&1
   log "removed the wallpaper watcher"
 fi
 
@@ -61,7 +61,7 @@ fi
 removed=0
 hook_dir=
 emptied_dirs=()
-for hook in "$HOOKS_DIR"/*/55-auto-sync.sh; do
+for hook in "$HOOKS_DIR"/*/55-theme-sync.sh "$HOOKS_DIR"/*/55-better-sync.sh; do
   [[ -e $hook ]] || continue
   # Only remove links that point into this plugin. A file the user wrote at this
   # path, or a link to some other checkout, is not ours to delete.
@@ -94,9 +94,9 @@ for dir in "${emptied_dirs[@]:-}"; do
   esac
 done
 
-if [[ -L $LOCAL_BIN/omarchy-auto-sync ]]; then
-  rm -f "$LOCAL_BIN/omarchy-auto-sync"
-  log "removed ~/.local/bin/omarchy-auto-sync"
+if [[ -L $LOCAL_BIN/better-theme-sync ]]; then
+  rm -f "$LOCAL_BIN/better-theme-sync"
+  log "removed ~/.local/bin/better-theme-sync"
 fi
 
 # ---------------------------------------------------------------------------
@@ -125,7 +125,7 @@ purge_configs() {
     "$HOME/.config/qt5ct/qt5ct.conf"
     "$HOME/.config/qt6ct/colors/Omarchy.conf"
     "$HOME/.config/qt6ct/qt6ct.conf"
-    "$HOME/.config/environment.d/90-omarchy-auto-sync.conf"
+    "$HOME/.config/environment.d/90-better-theme-sync.conf"
   )
   local file
   for file in "${generated[@]}"; do
@@ -177,10 +177,10 @@ or delete by hand:
   ~/.config/gtk-4.0/gtk.css          (only the AUTOSYNC block)
   ~/.config/gtk-3.0/gtk.css          (only the AUTOSYNC block)
   ~/.config/qt5ct/ ~/.config/qt6ct/   (if qt5ct/qt6ct was installed for this)
-  ~/.config/environment.d/90-omarchy-auto-sync.conf
+  ~/.config/environment.d/90-better-theme-sync.conf
   ~/.local/share/applications/*.desktop   (only the ones with WebContentsForceDark)
   ~/.local/share/Steam/userdata/*/config/theme.vdf
-  ~/.local/state/omarchy/auto-sync/      (state and reports)
+  ~/.local/state/omarchy/better-theme-sync/      (state and reports)
 LEFT
 fi
 

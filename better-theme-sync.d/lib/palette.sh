@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Palette resolution for omarchy-auto-sync.
+# Palette resolution for better-theme-sync.
 #
 # Two independent color sources reach the handlers:
 #

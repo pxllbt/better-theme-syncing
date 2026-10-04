@@ -1,4 +1,10 @@
-# omarchy-auto-sync
+# Better Theme Syncing
+
+![Omarchy](https://img.shields.io/badge/Omarchy-4.x-1e66f5?style=flat-square)
+![Shell](https://img.shields.io/badge/Shell-bash-1e66f5?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-1e66f5?style=flat-square)
+
+> **id:** `pix.themesync`
 
 Theme every application installed on an [Omarchy](https://omarchy.org/) system from the active
 theme and the current wallpaper — including applications installed later.
@@ -10,13 +16,19 @@ as you install more.
 Works with [Better Bar](https://github.com/amanhex/Better)'s wallpaper palette, and does not
 compete with `omarchy-rice-sync`, the `better-sync` hook, or the Omarchy shell's own theming.
 
+> **Naming note.** Better Bar ships a hook of its own called `better-sync`. It is unrelated to this
+> project and stays where it is. Nothing here reads, writes, or replaces it.
+
+> **Renamed.** This tool was previously `omarchy-auto-sync`, and briefly `better-sync`. Both old
+> commands still work through a shim that warns and forwards to `better-theme-sync`.
+
 ---
 
 ## Install
 
 ```bash
-git clone <this-repo> ~/.config/omarchy/plugins/auto-sync
-~/.config/omarchy/plugins/auto-sync/install.sh
+git clone <this-repo> ~/.config/omarchy/plugins/better-theme-syncing
+~/.config/omarchy/plugins/better-theme-syncing/install.sh
 ```
 
 Installed by symlink, so `git pull` updates it. No root, no system files touched.
@@ -24,8 +36,8 @@ Installed by symlink, so `git pull` updates it. No root, no system files touched
 To remove:
 
 ```bash
-~/.config/omarchy/plugins/auto-sync/uninstall.sh            # keep generated configs
-~/.config/omarchy/plugins/auto-sync/uninstall.sh --purge    # also strip them
+~/.config/omarchy/plugins/better-theme-syncing/uninstall.sh            # keep generated configs
+~/.config/omarchy/plugins/better-theme-syncing/uninstall.sh --purge    # also strip them
 ```
 
 Uninstall deliberately leaves generated configs alone. `gtk.css` may hold rules you wrote
@@ -36,11 +48,11 @@ than a leftover file.
 
 | Command | What it does |
 | --- | --- |
-| `omarchy-auto-sync` | Sync every application. Same as the hooks run. |
-| `omarchy-auto-sync --theme` | Theme colors only, ignoring the wallpaper |
-| `omarchy-auto-sync --wallpaper` | Wallpaper palette only |
-| `omarchy-auto-sync --list` | Every application found, and what would be themed |
-| `omarchy-auto-sync --check` | Dependencies, paths, counts. Changes nothing. |
+| `better-theme-sync` | Sync every application. Same as the hooks run. |
+| `better-theme-sync --theme` | Theme colors only, ignoring the wallpaper |
+| `better-theme-sync --wallpaper` | Wallpaper palette only |
+| `better-theme-sync --list` | Every application found, and what would be themed |
+| `better-theme-sync --check` | Dependencies, paths, counts. Changes nothing. |
 
 All are idempotent. Nothing is written unless the content actually changed.
 
@@ -168,7 +180,7 @@ too early.
 
 ## Configuration
 
-`omarchy-auto-sync.d/config.json`:
+`better-theme-sync.d/config.json`:
 
 ```json
 {
@@ -188,7 +200,7 @@ A malformed config logs a warning and falls back to the defaults. It never block
 
 ## Adding your own handler
 
-Drop a script into `omarchy-auto-sync.d/apps/` defining `apply_<name>`. It runs on every sync, after
+Drop a script into `better-theme-sync.d/apps/` defining `apply_<name>`. It runs on every sync, after
 the built-in handlers.
 
 ```bash
@@ -254,8 +266,8 @@ Without it the theme pass works unchanged and the wallpaper pass becomes a no-op
 ## Layout
 
 ```
-omarchy-auto-sync                        engine
-omarchy-auto-sync.d/
+better-theme-sync                         engine
+better-theme-sync.d/
   config.json
   lib/{common,palette,detect}.sh
   handlers/00-gtk.sh                     gsettings + gtk.css

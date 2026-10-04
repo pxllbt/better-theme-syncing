@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# omarchy-auto-sync: apply the new theme to every installed application.
+# better-theme-sync: apply the new theme to every installed application.
 #
-# Installed by omarchy-auto-sync's install.sh; edit that, not this.
+# Installed by better-theme-sync's install.sh; edit that, not this.
 #
 # omarchy-hook runs this with bash and prints a failure without aborting the
 # theme change, so a broken app config here can never block a theme switch.
@@ -14,7 +14,7 @@
 # moment later would have to correct all of it -- a visible double write, and a
 # GTK app watching gtk.css would reload twice for one theme switch.
 #
-# So this establishes the theme palette, and omarchy-auto-sync-wallpaper.path --
+# So this establishes the theme palette, and better-theme-sync-wallpaper.path --
 # which fires on the same directory change -- layers the wallpaper tint on top
 # once the palette has settled. One write each, in a known order.
 #
@@ -22,5 +22,5 @@
 # is fully swapped before anything is read.
 set -uo pipefail
 
-command -v omarchy-auto-sync >/dev/null 2>&1 || exit 0
-omarchy-auto-sync --theme || true
+command -v better-theme-sync >/dev/null 2>&1 || exit 0
+better-theme-sync --theme || true

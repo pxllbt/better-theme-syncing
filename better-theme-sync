@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# omarchy-auto-sync — theme every installed application from the active Omarchy
+# better-theme-sync — theme every installed application from the active Omarchy
 # theme and the current wallpaper.
 #
 # Omarchy themes a fixed list of about fifteen applications. Everything else on
@@ -37,34 +37,34 @@ while [[ -L $autosync_self ]]; do
 done
 AUTOSYNC_BIN_DIR=$(cd -- "$(dirname -- "$autosync_self")" && pwd)
 readonly AUTOSYNC_BIN_DIR
-# The engine script sits at the root of the plugin, next to omarchy-auto-sync.d/,
+# The engine script sits at the root of the plugin, next to better-theme-sync.d/,
 # so its own directory is the plugin home. (Not the parent: when installed as a
 # symlink in ~/.local/bin, the resolved path is already the plugin copy.)
 AUTOSYNC_HOME=$AUTOSYNC_BIN_DIR
 readonly AUTOSYNC_HOME
-readonly AUTOSYNC_LIB_DIR="$AUTOSYNC_HOME/omarchy-auto-sync.d/lib"
-readonly AUTOSYNC_HANDLER_DIR="$AUTOSYNC_HOME/omarchy-auto-sync.d/handlers"
-readonly AUTOSYNC_USER_DIR="$AUTOSYNC_HOME/omarchy-auto-sync.d/apps"
-readonly AUTOSYNC_CONFIG_FILE="$AUTOSYNC_HOME/omarchy-auto-sync.d/config.json"
+readonly AUTOSYNC_LIB_DIR="$AUTOSYNC_HOME/better-theme-sync.d/lib"
+readonly AUTOSYNC_HANDLER_DIR="$AUTOSYNC_HOME/better-theme-sync.d/handlers"
+readonly AUTOSYNC_USER_DIR="$AUTOSYNC_HOME/better-theme-sync.d/apps"
+readonly AUTOSYNC_CONFIG_FILE="$AUTOSYNC_HOME/better-theme-sync.d/config.json"
 
 usage() {
   cat <<'USAGE'
-omarchy-auto-sync — theme every installed application from the active Omarchy theme
+better-theme-sync — theme every installed application from the active Omarchy theme
 
 Usage:
-  omarchy-auto-sync [sync]      Sync every application (default)
-  omarchy-auto-sync --theme     Sync theme colors only, ignoring the wallpaper
-  omarchy-auto-sync --wallpaper Sync only wallpaper-derived colors
-  omarchy-auto-sync --list      List detected applications and what would run
-  omarchy-auto-sync --check     Report dependencies and problems, change nothing
-  omarchy-auto-sync --version   Print the version
-  omarchy-auto-sync --help      This text
+  better-theme-sync [sync]      Sync every application (default)
+  better-theme-sync --theme     Sync theme colors only, ignoring the wallpaper
+  better-theme-sync --wallpaper Sync only wallpaper-derived colors
+  better-theme-sync --list      List detected applications and what would run
+  better-theme-sync --check     Report dependencies and problems, change nothing
+  better-theme-sync --version   Print the version
+  better-theme-sync --help      This text
 
 The theme-set and wallpaper-change hooks call `sync` and `--wallpaper`
 respectively; running either by hand is safe and idempotent.
 
-Exclusions live in omarchy-auto-sync.d/config.json under "exclude".
-Drop a script defining apply_<name>() into omarchy-auto-sync.d/apps/ to add
+Exclusions live in better-theme-sync.d/config.json under "exclude".
+Drop a script defining apply_<name>() into better-theme-sync.d/apps/ to add
 your own handler; it receives the palette as environment variables.
 USAGE
 }
@@ -300,7 +300,7 @@ mode_list() {
 mode_check() {
   local rc=0 dep
 
-  printf 'omarchy-auto-sync %s\n\n' "$AUTOSYNC_VERSION"
+  printf 'better-theme-sync %s\n\n' "$AUTOSYNC_VERSION"
 
   printf 'dependencies:\n'
   for dep in jq gsettings flatpak; do
@@ -360,7 +360,7 @@ main() {
     --list | list) mode=list ;;
     --check | check) mode=check ;;
     --version | -v)
-      printf 'omarchy-auto-sync %s\n' "$AUTOSYNC_VERSION"
+      printf 'better-theme-sync %s\n' "$AUTOSYNC_VERSION"
       return 0
       ;;
     --help | -h | help)

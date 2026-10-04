@@ -1,6 +1,6 @@
 {
   "_comment": [
-    "omarchy-auto-sync configuration.",
+    "better-theme-sync configuration.",
     "\"exclude\" is a list of substrings matched against a desktop entry's id.",
     "Anything matching is left alone entirely. Useful for an app whose own",
     "theming is better than anything generated here.",

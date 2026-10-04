@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Compatibility shim: this tool was briefly called `better-sync`, and is now
+# `better-theme-sync`.
+#
+# It warns on every run rather than forwarding silently, and that is the point.
+# Better Bar (https://github.com/amanhex/Better) ships a hook of its own named
+# `better-sync`, which is unrelated to this project. A silent shim here would
+# reintroduce exactly the name collision this project exists to avoid, so if you
+# reached this command expecting Better Bar's hook, you are in the wrong place.
+set -uo pipefail
+
+printf 'better-sync: this shim is NOT Better Bar'"'"'s hook — it is better-theme-sync, renamed.\n' >&2
+printf 'better-sync: for the theme syncing tool, use `better-theme-sync` directly.\n' >&2
+
+exec better-theme-sync "$@"

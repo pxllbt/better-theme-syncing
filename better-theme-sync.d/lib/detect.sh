@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installed-application inventory for omarchy-auto-sync.
+# Installed-application inventory for better-theme-sync.
 #
 # Two jobs:
 #

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared helpers for omarchy-auto-sync. Sourced by the engine; never run directly.
+# Shared helpers for better-theme-sync. Sourced by the engine; never run directly.
 
 # Where the engine keeps state that must survive an `omarchy update`. Omarchy
 # owns everything under /usr/share/omarchy, so a plugin's own bookkeeping goes
